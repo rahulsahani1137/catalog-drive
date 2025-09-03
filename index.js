@@ -1,111 +1,152 @@
-const fs = require('fs');
+import fs from "fs";
 
-/**
- * Step 1: Convert a number string from any base (2 to 16) to decimal integer
- * @param {string} numberString - Number in string form
- * @param {number} base - Base of the input number (2 <= base <= 16)
- * @returns {number} Decimal integer equivalent
- */
-function convertToDecimal(numberString, base) {
-    if (base < 2 || base > 16) {
-        throw new Error("Base must be between 2 and 16");
-    }
-
-    const validDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const upperCaseNumber = numberString.toUpperCase();
-    let decimalValue = 0;
-
-    for (let charIndex = 0; charIndex < upperCaseNumber.length; charIndex++) {
-        const currentChar = upperCaseNumber[charIndex];
-        const digitValue = validDigits.indexOf(currentChar);
-
-        if (digitValue === -1 || digitValue >= base) {
-            throw new Error(`Invalid digit '${currentChar}' for base ${base}`);
-        }
-
-        decimalValue = decimalValue * base + digitValue;
-    }
-
-    return decimalValue;
+function bigIntAbsolute(value) { 
+  return value < 0n ? -value : value; 
 }
 
-/**
- * Step 2: Perform Lagrange interpolation on given points to compute
- * the constant term of the polynomial.
- * @param {Array} points - Array of points [[x1, y1], [x2, y2], ...]
- * @returns {number} Interpolated constant term value
- */
-function lagrangeInterpolation(points) {
-    let interpolationResult = 0;
-    const numberOfPoints = points.length;
-
-    for (let i = 0; i < numberOfPoints; i++) {
-        let term = points[i][1]; // y-value of the point
-
-        for (let j = 0; j < numberOfPoints; j++) {
-            if (j !== i) {
-                term *= -points[j][0] / (points[i][0] - points[j][0]);
-            }
-        }
-
-        interpolationResult += term;
-    }
-    
-    return interpolationResult;
+function bigIntGreatestCommonDivisor(a, b) {
+  a = bigIntAbsolute(a);
+  b = bigIntAbsolute(b);
+  while (b !== 0n) { 
+    const temp = a % b; 
+    a = b; 
+    b = temp; 
+  }
+  return a;
 }
 
-/**
- * Step 3: Parse input data, convert bases, select k points, and solve
- * for the polynomial's constant term using Lagrange interpolation.
- * @param {Object} data - Parsed JSON data representing the test case
- * @returns {number} Rounded constant term
- */
-function solvePolynomial(data) {
-    const polynomialDegree = data.keys.n;
-    const pointsNeeded = data.keys.k;
-
-    const dataPoints = [];
-
-    for (const [key, value] of Object.entries(data)) {
-        if (key !== "keys") {
-            const xCoord = parseInt(key);
-            const valueBase = parseInt(value.base);
-            const yValue = convertToDecimal(value.value, valueBase);
-            dataPoints.push([xCoord, yValue]);
-        }
+class Fraction {
+  constructor(numerator, denominator = 1n) {
+    if (denominator === 0n) throw new Error("Division by zero in Fraction");
+    if (denominator < 0n) { 
+      numerator = -numerator; 
+      denominator = -denominator; 
     }
+    const gcd = bigIntGreatestCommonDivisor(numerator, denominator);
+    this.numerator = numerator / gcd;
+    this.denominator = denominator / gcd;
+  }
 
-    if (dataPoints.length < pointsNeeded) {
-        throw new Error("Not enough points to solve the polynomial!");
+  add(otherFraction) {
+    return new Fraction(
+      this.numerator * otherFraction.denominator + otherFraction.numerator * this.denominator,
+      this.denominator * otherFraction.denominator
+    );
+  }
+
+  sub(otherFraction) {
+    return new Fraction(
+      this.numerator * otherFraction.denominator - otherFraction.numerator * this.denominator,
+      this.denominator * otherFraction.denominator
+    );
+  }
+
+  mul(otherFraction) {
+    return new Fraction(
+      this.numerator * otherFraction.numerator,
+      this.denominator * otherFraction.denominator
+    );
+  }
+
+  div(otherFraction) {
+    if (otherFraction.numerator === 0n) throw new Error("Division by zero in Fraction.div");
+    let numerator = this.numerator * otherFraction.denominator;
+    let denominator = this.denominator * otherFraction.numerator;
+    if (denominator < 0n) { 
+      numerator = -numerator; 
+      denominator = -denominator; 
     }
+    return new Fraction(numerator, denominator);
+  }
 
-    // Use only the first k points for interpolation
-    dataPoints.length = pointsNeeded;
+  isInteger() { 
+    return this.denominator === 1n; 
+  }
 
-    // Calculate and return the rounded constant term
-    const constantTerm = lagrangeInterpolation(dataPoints);
-    return Math.round(constantTerm);
+  toString() { 
+    return this.isInteger() ? this.numerator.toString() : `${this.numerator.toString()}/${this.denominator.toString()}`; 
+  }
 }
 
-/**
- * Step 4: Read multiple test case files asynchronously and solve each polynomial.
- * Output the constant term to console for each test case.
- */
-const totalTestCases = 2;
-
-for (let testCaseIndex = 1; testCaseIndex <= totalTestCases; testCaseIndex++) {
-    fs.readFile(`testcase${testCaseIndex}.json`, 'utf8', (readError, jsonString) => {
-        if (readError) {
-            console.error(`Error reading file for test case ${testCaseIndex}:`, readError);
-            return;
-        }
-
-        try {
-            const testData = JSON.parse(jsonString);
-            const constantResult = solvePolynomial(testData);
-            console.log(`The constant term 'c' of the polynomial in test case ${testCaseIndex} is:`, constantResult);
-        } catch (parseError) {
-            console.error(`Error parsing JSON for test case ${testCaseIndex}:`, parseError);
-        }
-    });
+function charToDigitValue(character) {
+  const lowerChar = character.toLowerCase();
+  if (lowerChar >= '0' && lowerChar <= '9') return lowerChar.charCodeAt(0) - '0'.charCodeAt(0);
+  if (lowerChar >= 'a' && lowerChar <= 'z') return 10 + (lowerChar.charCodeAt(0) - 'a'.charCodeAt(0));
+  throw new Error(`Invalid digit '${character}'`);
 }
+
+function decodeStringToBigInt(numberString, base) {
+  const bigBase = BigInt(base);
+  let accumulator = 0n;
+  for (const character of numberString.trim()) {
+    const digitValue = charToDigitValue(character);
+    if (digitValue >= base) throw new Error(`Digit '${character}' not valid for base ${base}`);
+    accumulator = accumulator * bigBase + BigInt(digitValue);
+  }
+  return accumulator;
+}
+
+function lagrangeInterpolationAtZero(pointsArray) {
+  let reconstructedSecret = new Fraction(0n, 1n);
+
+  for (let i = 0; i < pointsArray.length; i++) {
+    const [x_i, y_i] = pointsArray[i];
+    let lagrangeTerm = new Fraction(y_i, 1n);
+
+    for (let j = 0; j < pointsArray.length; j++) {
+      if (i === j) continue;
+      const [x_j] = pointsArray[j];
+      const numerator = new Fraction(-x_j, 1n);
+      const denominator = new Fraction(x_i - x_j, 1n);
+      lagrangeTerm = lagrangeTerm.mul(numerator).div(denominator);
+    }
+
+    reconstructedSecret = reconstructedSecret.add(lagrangeTerm);
+  }
+
+  return reconstructedSecret;
+}
+
+function main() {
+  const inputFile = process.argv[2] || "testcase2.json";
+  const inputData = JSON.parse(fs.readFileSync(inputFile, "utf-8"));
+
+  if (!inputData.keys || typeof inputData.keys.k === "undefined") {
+    throw new Error("Invalid JSON: missing keys.k");
+  }
+  const threshold = Number(inputData.keys.k);
+  if (!Number.isInteger(threshold) || threshold < 2) {
+    throw new Error("Invalid k");
+  }
+
+  const pointsList = [];
+  for (const keyString of Object.keys(inputData)) {
+    if (keyString === "keys") continue;
+    const entry = inputData[keyString];
+    if (!entry || typeof entry.base === "undefined" || typeof entry.value === "undefined") continue;
+    const xCoord = BigInt(keyString);
+    const baseNumber = Number(entry.base);
+    if (!Number.isInteger(baseNumber) || baseNumber < 2 || baseNumber > 36) {
+      throw new Error(`Unsupported base ${entry.base} for x=${keyString}`);
+    }
+    const yCoord = decodeStringToBigInt(entry.value, baseNumber);
+    pointsList.push([xCoord, yCoord]);
+  }
+
+  if (pointsList.length < threshold) {
+    throw new Error(`Not enough points. Have ${pointsList.length}, need k=${threshold}`);
+  }
+
+  pointsList.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const selectedPoints = pointsList.slice(0, threshold);
+
+  const secretFraction = lagrangeInterpolationAtZero(selectedPoints);
+
+  if (secretFraction.isInteger()) {
+    console.log(secretFraction.numerator.toString());
+  } else {
+    console.log(secretFraction.toString());
+  }
+}
+
+main();
