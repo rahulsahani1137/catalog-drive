@@ -55,4 +55,35 @@ function lagrangeInterpolation(points) {
     return interpolationResult;
 }
 
-lagrangeInterpolation(7)
+/**
+ * Step 3: Parse input data, convert bases, select k points, and solve
+ * for the polynomial's constant term using Lagrange interpolation.
+ * @param {Object} data - Parsed JSON data representing the test case
+ * @returns {number} Rounded constant term
+ */
+function solvePolynomial(data) {
+    const polynomialDegree = data.keys.n;
+    const pointsNeeded = data.keys.k;
+
+    const dataPoints = [];
+
+    for (const [key, value] of Object.entries(data)) {
+        if (key !== "keys") {
+            const xCoord = parseInt(key);
+            const valueBase = parseInt(value.base);
+            const yValue = convertToDecimal(value.value, valueBase);
+            dataPoints.push([xCoord, yValue]);
+        }
+    }
+
+    if (dataPoints.length < pointsNeeded) {
+        throw new Error("Not enough points to solve the polynomial!");
+    }
+
+    // Use only the first k points for interpolation
+    dataPoints.length = pointsNeeded;
+
+    // Calculate and return the rounded constant term
+    const constantTerm = lagrangeInterpolation(dataPoints);
+    return Math.round(constantTerm);
+}
