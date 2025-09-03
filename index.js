@@ -50,7 +50,6 @@ function lagrangeInterpolation(points) {
 
         interpolationResult += term;
     }
-    console.log(interpolationResult);
     
     return interpolationResult;
 }
@@ -86,4 +85,27 @@ function solvePolynomial(data) {
     // Calculate and return the rounded constant term
     const constantTerm = lagrangeInterpolation(dataPoints);
     return Math.round(constantTerm);
+}
+
+/**
+ * Step 4: Read multiple test case files asynchronously and solve each polynomial.
+ * Output the constant term to console for each test case.
+ */
+const totalTestCases = 2;
+
+for (let testCaseIndex = 1; testCaseIndex <= totalTestCases; testCaseIndex++) {
+    fs.readFile(`testcase${testCaseIndex}.json`, 'utf8', (readError, jsonString) => {
+        if (readError) {
+            console.error(`Error reading file for test case ${testCaseIndex}:`, readError);
+            return;
+        }
+
+        try {
+            const testData = JSON.parse(jsonString);
+            const constantResult = solvePolynomial(testData);
+            console.log(`The constant term 'c' of the polynomial in test case ${testCaseIndex} is:`, constantResult);
+        } catch (parseError) {
+            console.error(`Error parsing JSON for test case ${testCaseIndex}:`, parseError);
+        }
+    });
 }
